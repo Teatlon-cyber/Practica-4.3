@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Huella energética de la nube</title>
+<style>
+  :root {
+    --bosque: #1f4d3a;
+    --hoja: #3f8f5a;
+    --cielo: #e6f3ee;
+    --agua: #2b7a8c;
+    --tierra: #6b5a3e;
+    --papel: #f7fbf8;
+    --texto: #1b2b24;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Trebuchet MS", "Segoe UI", Arial, sans-serif;
+    color: var(--texto);
+    background: linear-gradient(180deg, var(--cielo) 0%, var(--papel) 60%);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--bosque);
+    color: #fff;
+    padding: 2rem 1rem 1.6rem;
+    text-align: center;
+    border-bottom: 6px solid var(--hoja);
+  }
+  header h1 { margin: 0 0 .5rem; font-size: clamp(1.6rem, 5vw, 2.4rem); }
+  header p { margin: 0 auto; max-width: 42rem; font-size: 1.02rem; }
+  main { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+  form {
+    background: #fff;
+    border: 1px solid #cfe3d8;
+    border-left: 6px solid var(--agua);
+    border-radius: 12px;
+    padding: 1.2rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  @media (min-width: 600px) { form { grid-template-columns: 1fr 1fr; } }
+  label { display: flex; flex-direction: column; font-weight: 600; font-size: .95rem; color: var(--bosque); }
+  label span { font-weight: 400; font-size: .85rem; color: var(--tierra); }
+  input {
+    margin-top: .35rem;
+    padding: .6rem .7rem;
+    font-size: 1rem;
+    border: 1px solid #a9c7b6;
+    border-radius: 8px;
+    background: var(--papel);
+    color: var(--texto);
+  }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--agua); outline-offset: 2px; }
+  button {
+    grid-column: 1 / -1;
+    padding: .85rem 1rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--hoja);
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: var(--bosque); }
+  button:disabled { background: #8aa797; cursor: not-allowed; }
+  #estado { margin: 1rem 0 0; font-weight: 600; color: var(--agua); min-height: 1.5rem; }
+  #estado.error { color: #a33a2a; }
+  #resultado {
+    display: none;
+    margin-top: .5rem;
+    padding: 1.1rem;
+    background: #fff;
+    border: 2px solid var(--hoja);
+    border-radius: 12px;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Huella energética de la nube</h1>
+  <p>Cada acción digital se procesa en centros de datos que consumen energía; esta página estima tu huella.</p>
+</header>
+<main>
+  <form id="formulario">
+    <label>Video
+      <span>Horas al día de video en streaming (YouTube, Netflix, TikTok)</span>
+      <input type="number" id="video" name="video" min="0" step="any" required>
+    </label>
+    <label>Música
+      <span>Horas al día de música en streaming</span>
+      <input type="number" id="musica" name="musica" min="0" step="any" required>
+    </label>
+    <label>Redes sociales
+      <span>Horas al día en redes sociales</span>
+      <input type="number" id="redes" name="redes" min="0" step="any" required>
+    </label>
+    <label>Videollamadas
+      <span>Horas a la semana de videollamadas</span>
+      <input type="number" id="videollamadas" name="videollamadas" min="0" step="any" required>
+    </label>
+    <label>Juegos en línea
+      <span>Horas al día de juegos en línea</span>
+      <input type="number" id="juegos" name="juegos" min="0" step="any" required>
+    </label>
+    <label>Nube
+      <span>GB que tienes guardados en la nube (fotos, archivos)</span>
+      <input type="number" id="nube" name="nube" min="0" step="any" required>
+    </label>
+    <label>IA
+      <span>Consultas al día a chatbots de IA</span>
+      <input type="number" id="ia" name="ia" min="0" step="any" required>
+    </label>
+    <label>Correos
+      <span>Correos que envías al día</span>
+      <input type="number" id="correos" name="correos" min="0" step="any" required>
+    </label>
+    <button type="submit" id="boton">Calcular mi huella</button>
+  </form>
+  <p id="estado" role="status" aria-live="polite"></p>
+  <div id="resultado"></div>
+</main>
+<script>
+  // Pega aquí la URL de tu webhook de Make
+  const WEBHOOK_URL = "https://hook.us2.make.com/nc2cwo7er8zxy85xphb34bgw9zwuw99m";
+
+  const campos = ["video", "musica", "redes", "videollamadas", "juegos", "nube", "ia", "correos"];
+  const formulario = document.getElementById("formulario");
+  const boton = document.getElementById("boton");
+  const estado = document.getElementById("estado");
+  const resultado = document.getElementById("resultado");
+
+  formulario.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const datos = new URLSearchParams();
+    campos.forEach(function (c) {
+      datos.append(c, document.getElementById(c).value);
+    });
+
+    boton.disabled = true;
+    estado.className = "";
+    estado.textContent = "Calculando...";
+    resultado.style.display = "none";
+    resultado.textContent = "";
+
+    try {
+      const respuesta = await fetch(WEBHOOK_URL, { method: "POST", body: datos });
+      if (!respuesta.ok) { throw new Error("HTTP " + respuesta.status); }
+      const texto = await respuesta.text();
+      resultado.textContent = texto;
+      resultado.style.display = "block";
+      estado.textContent = "";
+    } catch (err) {
+      estado.className = "error";
+      estado.textContent = "No se pudo calcular, intenta de nuevo.";
+    } finally {
+      boton.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
